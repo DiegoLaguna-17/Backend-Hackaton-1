@@ -8,14 +8,15 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
-    res.send('Servicio funcionando 🚀');
+    res.send('Servicio Personal funcionando 🚀');
 });
 
 const personalRoutes = require('./routes/personal.routes');
+
 app.use('/api/personal', personalRoutes);
 
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
-    console.log(`🟢 Servicio corriendo en puerto ${PORT}`);
+    console.log(`🟢 Servicio Personal corriendo en puerto ${PORT}`);
 });
