@@ -1,0 +1,60 @@
+
+
+services:
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "80:80"
+    depends_on:
+      - login
+      - personal
+      - vacaciones
+      - contratos
+      - pagos
+    networks:
+      - backend
+    restart: unless-stopped
+
+  login:
+    build: ./servicios/login
+    env_file:
+      - ./servicios/login/.env
+    networks:
+      - backend
+    restart: unless-stopped
+
+  personal:
+    build: ./servicios/personal
+    env_file:
+      - ./servicios/personal/.env
+    networks:
+      - backend
+    restart: unless-stopped
+
+  vacaciones:
+    build: ./servicios/vacaciones
+    env_file:
+      - ./servicios/vacaciones/.env
+    networks:
+      - backend
+    restart: unless-stopped
+
+  contratos:
+    build: ./servicios/contratos
+    env_file:
+      - ./servicios/contratos/.env
+    networks:
+      - backend
+    restart: unless-stopped
+
+  pagos:
+    build: ./servicios/pagos
+    env_file:
+      - ./servicios/pagos/.env
+    networks:
+      - backend
+    restart: unless-stopped
+
+networks:
+  backend:
