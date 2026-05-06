@@ -15,54 +15,52 @@ app.get('/', (req, res) => {
     res.send('Servicio funcionando');
 });
 
-// endpoint para generar contrato
-app.post('/api/contratos', async (req, res) => {
-    const { id_personal, fecha_inicio, salario, tiempo_prueba } = req.body;
-
-    if (!id_personal || !fecha_inicio || !salario || !tiempo_prueba) {
-        return res.status(400).json({ error: 'Faltan datos requeridos (id_personal, fecha_inicio, salario, tiempo_prueba)' });
-    }
+// endpoint para generar contrato PDF leyendo datos existentes
+app.get('/api/contratos/:id/pdf', async (req, res) => {
+    const contratoId = req.params.id;
 
     try {
-        // 1. Obtener datos del empleado desde la tabla personal
-        const { data: empleado, error: empleadoError } = await supabase
-            .from('personal')
-            .select('*')
-            .eq('id', id_personal)
+        // 1. Obtener datos del contrato y hacer join con personal
+        const { data: contrato, error: contratoError } = await supabase
+            .from('contratos')
+            .select(`
+                *,
+                personal (*)
+            `)
+            .eq('id', contratoId)
             .single();
 
-        if (empleadoError || !empleado) {
-            return res.status(404).json({ error: 'Empleado no encontrado en la base de datos' });
+        if (contratoError || !contrato) {
+            return res.status(404).json({ error: 'Contrato no encontrado en la base de datos' });
+        }
+
+        const empleado = contrato.personal;
+
+        if (!empleado) {
+            return res.status(404).json({ error: 'Datos personales no encontrados para este contrato' });
         }
 
         // 2. Generar PDF con pdfkit
         const doc = new PDFDocument({ margin: 50 });
-
+        
         let buffers = [];
         doc.on('data', buffers.push.bind(buffers));
-
+        
         doc.on('end', async () => {
             try {
                 const pdfData = Buffer.concat(buffers);
                 const base64Pdf = pdfData.toString('base64');
 
-                // 3. Guardar en la tabla contratos (Base64 + datos)
-                const { data: nuevoContrato, error: contratoError } = await supabase
+                // 3. Actualizar el registro en la tabla contratos guardando el Base64
+                const { error: updateError } = await supabase
                     .from('contratos')
-                    .insert([{
-                        id_personal,
-                        fecha_inicio,
-                        salario,
-                        tiempo_prueba,
-                        contenido: base64Pdf
-                    }])
-                    .select()
-                    .single();
+                    .update({ contenido: base64Pdf })
+                    .eq('id', contratoId);
 
-                if (contratoError) {
-                    console.error("Error al guardar contrato:", contratoError);
+                if (updateError) {
+                    console.error("Error al actualizar contrato con el PDF:", updateError);
                     if (!res.headersSent) {
-                        return res.status(500).json({ error: 'Error al guardar el contrato en la base de datos' });
+                        return res.status(500).json({ error: 'Error al guardar el contenido del contrato en la base de datos' });
                     }
                 }
 
@@ -95,9 +93,9 @@ app.post('/api/contratos', async (req, res) => {
         doc.moveDown(1);
 
         doc.font('Helvetica-Bold').text('2. CONDICIONES DEL CONTRATO:');
-        doc.font('Helvetica').text(`Fecha de Ingreso: ${fecha_inicio}`);
-        doc.text(`Salario Mensual: ${salario} Bs.`);
-        doc.text(`Tiempo de Prueba: ${tiempo_prueba}`);
+        doc.font('Helvetica').text(`Fecha de Ingreso: ${contrato.fecha_inicio}`);
+        doc.text(`Salario Mensual: ${contrato.salario} Bs.`);
+        doc.text(`Tiempo de Prueba: ${contrato.tiempo_prueba}`);
         doc.moveDown(1);
 
         doc.font('Helvetica-Bold').text('3. DECLARACIÓN:');
