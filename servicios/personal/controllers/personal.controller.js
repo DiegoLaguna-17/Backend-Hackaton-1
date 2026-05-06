@@ -87,4 +87,101 @@ const darBajaPersonal = async (req, res) => {
     });
 };
 
-module.exports = { agregarPersonal, darBajaPersonal };
+const obtenerPersonal = async (req, res) => {
+    const { id } = req.params;
+
+    const { data: funcionario, error } = await supabase
+        .from('personal')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error || !funcionario) {
+        return res.status(404).json({ error: 'Funcionario no encontrado' });
+    }
+
+    res.status(200).json({
+        funcionario: funcionario
+    });
+};
+
+const listarPersonal = async (req, res) => {
+    const { estado } = req.query;
+
+    let query = supabase.from('personal').select('*');
+
+    if (estado) {
+        query = query.eq('estado', estado);
+    }
+
+    const { data: funcionarios, error } = await query;
+
+    if (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Error al obtener funcionarios' });
+    }
+
+    res.status(200).json({
+        total: funcionarios.length,
+        funcionarios: funcionarios
+    });
+};
+
+const modificarPersonal = async (req, res) => {
+    const { id } = req.params;
+    const { area, cargo, salario } = req.body;
+
+    // Validar salario si se proporciona
+    if (salario !== undefined) {
+        if (Number(salario) <= 0) {
+            return res.status(400).json({ error: 'El salario debe ser mayor a 0' });
+        }
+    }
+
+    // Validar cargo si se proporciona
+    if (cargo !== undefined) {
+        if (!cargo || cargo.trim() === '') {
+            return res.status(400).json({ error: 'El cargo no puede estar vacío' });
+        }
+    }
+
+    // Verificar que el funcionario existe y está activo
+    const { data: funcionario } = await supabase
+        .from('personal')
+        .select('id, estado')
+        .eq('id', id)
+        .single();
+
+    if (!funcionario) {
+        return res.status(404).json({ error: 'Funcionario no encontrado' });
+    }
+
+    if (funcionario.estado === 'Inactivo') {
+        return res.status(400).json({ error: 'No se puede modificar un funcionario inactivo' });
+    }
+
+    // Preparar datos a actualizar
+    const datosActualizar = {};
+    if (area !== undefined) datosActualizar.area = area;
+    if (cargo !== undefined) datosActualizar.cargo = cargo.trim();
+    if (salario !== undefined) datosActualizar.salario = Number(salario);
+
+    const { data, error } = await supabase
+        .from('personal')
+        .update(datosActualizar)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Error al actualizar el funcionario' });
+    }
+
+    res.status(200).json({
+        mensaje: 'Funcionario actualizado exitosamente',
+        funcionario: data
+    });
+};
+
+module.exports = { agregarPersonal, darBajaPersonal, obtenerPersonal, listarPersonal, modificarPersonal };
