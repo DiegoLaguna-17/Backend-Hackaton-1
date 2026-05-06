@@ -4,14 +4,15 @@ const cors = require('cors');
 
 const app = express();
 
-// middlewares básicos
 app.use(cors());
 app.use(express.json());
 
-// endpoint de prueba
 app.get('/', (req, res) => {
     res.send('Servicio funcionando 🚀');
 });
+
+const personalRoutes = require('./routes/personal.routes');
+app.use('/api/personal', personalRoutes);
 
 const PORT = process.env.PORT || 3001;
 
